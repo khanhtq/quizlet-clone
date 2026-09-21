@@ -669,15 +669,21 @@ export default function FlashcardPlayer({
           ref={cardRef}
           onClick={toggleFlip}
           style={{
-            transform: `translateX(${touchDeltaX}px) rotate(${tiltAngle}deg)`,
+            transform: `translateX(${touchDeltaX}px) rotate(${tiltAngle}deg) rotateY(${isFlipped ? 180 : 0}deg)`,
+            transformStyle: 'preserve-3d',
+            WebkitTransformStyle: 'preserve-3d',
             backgroundColor: swipeColorBg,
           }}
-          className={`relative w-full h-[360px] sm:h-[420px] rounded-3xl cursor-pointer shadow-lg transition-transform duration-300 transform-style-3d select-none border border-gray-200/90 dark:border-gray-800 ${
-            isFlipped ? 'rotate-y-180' : ''
-          }`}
+          className="relative w-full h-[360px] sm:h-[420px] rounded-3xl cursor-pointer shadow-lg transition-transform duration-500 transform-style-3d select-none border border-gray-200/90 dark:border-gray-800"
         >
           {/* FRONT FACE */}
-          <div className="absolute inset-0 w-full h-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-gray-900 backface-hidden flex flex-col justify-between">
+          <div
+            style={{
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+            className="absolute inset-0 w-full h-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-gray-900 flex flex-col justify-between"
+          >
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>{isTermFront ? 'Thuật ngữ (EN)' : 'Định nghĩa (VI)'}</span>
               <span className="text-[11px] opacity-75">{vi.study.flipHint}</span>
@@ -710,7 +716,14 @@ export default function FlashcardPlayer({
           </div>
 
           {/* BACK FACE */}
-          <div className="absolute inset-0 w-full h-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-gray-900 backface-hidden rotate-y-180 flex flex-col justify-between border-2 border-blue-500/20">
+          <div
+            style={{
+              transform: 'rotateY(180deg)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+            }}
+            className="absolute inset-0 w-full h-full p-6 sm:p-8 rounded-3xl bg-white dark:bg-gray-900 flex flex-col justify-between border-2 border-blue-500/20"
+          >
             <div className="flex items-center justify-between text-xs text-gray-400">
               <span>{isTermFront ? 'Định nghĩa (VI)' : 'Thuật ngữ (EN)'}</span>
               {currentCard.partOfSpeech && (

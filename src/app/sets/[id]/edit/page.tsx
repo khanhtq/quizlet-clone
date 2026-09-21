@@ -186,10 +186,16 @@ export default function SetEditPage() {
   // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (termDropdownRef.current && !termDropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (termDropdownRef.current && !termDropdownRef.current.contains(target)) {
         setShowSuggestions(false);
       }
-      if (defDropdownRef.current && !defDropdownRef.current.contains(e.target as Node)) {
+      if (
+        defDropdownRef.current &&
+        !defDropdownRef.current.contains(target) &&
+        termDropdownRef.current &&
+        !termDropdownRef.current.contains(target)
+      ) {
         setShowDefinitionSuggestions(false);
       }
     }
@@ -197,7 +203,7 @@ export default function SetEditPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Meaning suggestions lookup (600ms debounce)
+  // 3. Meaning suggestions lookup (350ms debounce with abort)
   useEffect(() => {
     const trimmed = term.trim();
     if (!trimmed || trimmed.length < 2) {
@@ -205,18 +211,20 @@ export default function SetEditPage() {
     }
 
     let isCurrent = true;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         setIsLookingUp(true);
         const res = await fetch(
-          `/api/lookup?word=${encodeURIComponent(trimmed)}`
+          `/api/lookup?word=${encodeURIComponent(trimmed)}`,
+          { signal: controller.signal }
         );
         if (res.ok && isCurrent) {
           const data = await res.json();
           setLookupResult(data);
           // Autofill phonetic if not already filled
-          if (data.phonetic && !phonetic) {
-            setPhonetic(data.phonetic);
+          if (data.phonetic) {
+            setPhonetic((prev) => (prev ? prev : data.phonetic));
           }
           // If definition suggestions are available, display dropdown and auto-suggest first meaning
           if (data.meanings && data.meanings.length > 0) {
@@ -234,17 +242,18 @@ export default function SetEditPage() {
           }
         }
       } catch {
-        // Ignore lookup error
+        // Ignore lookup error / abort
       } finally {
         if (isCurrent) setIsLookingUp(false);
       }
-    }, 600);
+    }, 350);
 
     return () => {
       isCurrent = false;
+      controller.abort();
       clearTimeout(timer);
     };
-  }, [term, phonetic]);
+  }, [term]);
 
   async function triggerLookup(forceRefresh = false) {
     const trimmed = term.trim();
@@ -288,12 +297,12 @@ export default function SetEditPage() {
             const firstMeaning = data.meanings[0];
             const rawText = firstMeaning.vi || firstMeaning.en || '';
             const formatted = firstMeaning.pos ? `(${firstMeaning.pos}) ${rawText}` : rawText;
-            setDefinition((prev) => (prev ? prev : formatted));
+            setDefinition(formatted);
             if (firstMeaning.pos) {
-              setPartOfSpeech((prev) => (prev ? prev : firstMeaning.pos));
+              setPartOfSpeech(firstMeaning.pos);
             }
             if (firstMeaning.exampleEn) {
-              setExample((prev) => (prev ? prev : firstMeaning.exampleEn));
+              setExample(firstMeaning.exampleEn);
             }
           }
         }
@@ -648,6 +657,11 @@ export default function SetEditPage() {
               value={definition}
               onChange={(e) => setDefinition(e.target.value)}
               onFocus={() => {
+                if (lookupResult?.meanings && lookupResult.meanings.length > 0) {
+                  setShowDefinitionSuggestions(true);
+                }
+              }}
+              onClick={() => {
                 if (lookupResult?.meanings && lookupResult.meanings.length > 0) {
                   setShowDefinitionSuggestions(true);
                 }
