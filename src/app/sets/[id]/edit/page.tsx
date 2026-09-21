@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -13,9 +13,12 @@ import {
   Check,
   Sparkles,
   RefreshCw,
+  FileSpreadsheet,
+  Download,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
 import { LookupResult, MeaningItem } from '@/server/lookup/types';
+import BulkAddModal from '@/components/cards/BulkAddModal';
 
 interface CardItem {
   id: string;
@@ -64,7 +67,20 @@ export default function SetEditPage() {
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
 
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const termInputRef = useRef<HTMLInputElement>(null);
+
+  const reloadCards = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/sets/${setId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCards(data.cards || []);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [setId]);
 
   // Load set and cards
   useEffect(() => {
@@ -693,9 +709,29 @@ export default function SetEditPage() {
 
       {/* Existing Cards List */}
       <div className="space-y-3">
-        <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
-          Danh sách thẻ ({cards.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+            Danh sách thẻ ({cards.length})
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBulkModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 text-xs font-semibold transition min-h-[38px] cursor-pointer"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>{vi.bulk.title}</span>
+            </button>
+            <a
+              href={`/api/sets/${setId}/export/csv`}
+              download
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-semibold transition min-h-[38px] cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{vi.bulk.exportCSV}</span>
+            </a>
+          </div>
+        </div>
 
         {cards.length === 0 ? (
           <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
@@ -768,6 +804,14 @@ export default function SetEditPage() {
           </div>
         )}
       </div>
+
+      <BulkAddModal
+        setId={setId}
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onSuccess={reloadCards}
+        existingTerms={cards.map((c) => c.term)}
+      />
     </div>
   );
 }

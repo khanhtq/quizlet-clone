@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -15,6 +15,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
+  Database,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
 import LogoutButton from '@/components/auth/LogoutButton';
@@ -54,6 +57,68 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Backup & Restore state
+  const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
+  const [isRestoring, setIsRestoring] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (restoreMode === 'replace') {
+      if (!confirm(vi.backup.confirmReplace)) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    }
+
+    setIsRestoring(true);
+    setToast(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+
+        const res = await fetch('/api/backup/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: restoreMode,
+            backup: parsed,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setToast({
+            type: 'success',
+            message: vi.backup.restoreSuccess(
+              data.restored.setsCount,
+              data.restored.cardsCount
+            ),
+          });
+          // Reload settings
+          const sRes = await fetch('/api/settings');
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            if (sData.settings) setSettings(sData.settings);
+          }
+        } else {
+          setToast({ type: 'error', message: vi.backup.restoreFailed });
+        }
+      } catch {
+        setToast({ type: 'error', message: vi.backup.restoreFailed });
+      } finally {
+        setIsRestoring(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
 
   useEffect(() => {
     let ignore = false;
@@ -388,6 +453,59 @@ export default function SettingsPage() {
           </button>
         </div>
       </form>
+
+      {/* Backup & Restore Section */}
+      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-purple-600" />
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+            {vi.backup.title}
+          </h2>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {vi.backup.desc}
+        </p>
+
+        <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <a
+            href="/api/backup"
+            download
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 text-xs font-semibold transition min-h-[44px] cursor-pointer"
+          >
+            <Download className="w-4 h-4" />
+            <span>{vi.backup.exportButton}</span>
+          </a>
+
+          <div className="w-full sm:w-auto flex flex-wrap items-center gap-2">
+            <select
+              value={restoreMode}
+              onChange={(e) => setRestoreMode(e.target.value as 'merge' | 'replace')}
+              className="px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-medium min-h-[44px]"
+            >
+              <option value="merge">{vi.backup.mergeOption}</option>
+              <option value="replace">{vi.backup.replaceOption}</option>
+            </select>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleRestoreFile}
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              disabled={isRestoring}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 text-xs font-semibold transition min-h-[44px] cursor-pointer disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{isRestoring ? 'Đang khôi phục...' : vi.backup.restoreButton}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Account Section */}
       <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">

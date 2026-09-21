@@ -89,6 +89,55 @@ export async function createCard(userId: string, setId: string, data: CreateCard
   return newCard;
 }
 
+export async function createCardsBulk(
+  userId: string,
+  setId: string,
+  cardsList: CreateCardInput[]
+) {
+  const set = await db
+    .select()
+    .from(sets)
+    .where(and(eq(sets.id, setId), eq(sets.userId, userId)))
+    .get();
+
+  if (!set) {
+    throw new Error('NOT_FOUND_OR_UNAUTHORIZED');
+  }
+
+  if (cardsList.length === 0) {
+    return [];
+  }
+
+  const existingCards = await db
+    .select({ position: cards.position })
+    .from(cards)
+    .where(and(eq(cards.setId, setId), eq(cards.userId, userId)));
+
+  const maxPos = existingCards.reduce((max, c) => Math.max(max, c.position), -1);
+  const now = Date.now();
+
+  const toInsert = cardsList.map((c, i) => ({
+    id: nanoid(),
+    setId,
+    userId,
+    term: c.term.trim(),
+    definition: c.definition.trim(),
+    phonetic: c.phonetic?.trim() || null,
+    partOfSpeech: c.partOfSpeech?.trim() || null,
+    example: c.example?.trim() || null,
+    audioUrl: c.audioUrl?.trim() || null,
+    position: c.position ?? maxPos + 1 + i,
+    starred: false,
+    createdAt: now + i,
+    updatedAt: now,
+  }));
+
+  await db.insert(cards).values(toInsert);
+  await db.update(sets).set({ updatedAt: now }).where(eq(sets.id, setId));
+
+  return toInsert;
+}
+
 export async function updateCard(userId: string, cardId: string, data: UpdateCardInput) {
   const existing = await getCardById(userId, cardId);
   if (!existing) {

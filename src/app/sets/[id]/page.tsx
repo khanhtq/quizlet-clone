@@ -14,6 +14,7 @@ import {
   Trash2,
   Volume2,
   Plus,
+  Download,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
 
@@ -204,6 +205,14 @@ export default function SetDetailPage() {
           >
             <Copy className="w-4 h-4" />
           </button>
+          <a
+            href={`/api/sets/${setId}/export/csv`}
+            download
+            title={vi.bulk.exportCSV}
+            className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer text-gray-700 dark:text-gray-300"
+          >
+            <Download className="w-4 h-4" />
+          </a>
           <Link
             href={`/sets/${setId}/edit`}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px] text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer"

@@ -14,3 +14,6 @@
 - **srs timezone handling**: Target due dates for intervals >= 1 day calculate the exact matching clock time in the user's timezone using `Intl.DateTimeFormat` and offset refinement.
 - **deterministic srs undo**: Replaying chronological review logs for the card reconstructs the exact prior SRS state on undo without requiring historical snapshot columns.
 - **in-session again re-queueing**: Implemented in-session queueing of cards rated 'again' to re-test after ~10 minutes or immediately before completing the session.
+- **bulk add concurrency 3**: Managed async auto-lookup for terms without definition using a client-side concurrency worker pool of 3 with live progress indication.
+- **rfc 4180 csv with utf-8 bom**: Prepend byte order mark `\uFEFF` on CSV exports to guarantee flawless rendering of Vietnamese accents across Microsoft Excel, Google Sheets, and standard spreadsheet software.
+- **json backup re-keying on restore**: When importing foreign JSON backups, re-key collided IDs with `nanoid()` while maintaining relational integrity (folders -> sets -> cards -> progress -> logs) to prevent cross-user ID collision or data corruption.
