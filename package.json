@@ -12,8 +12,10 @@
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/server/db/migrate.ts",
-    "db:seed": "tsx src/server/db/seed.ts"
+    "db:seed": "tsx src/server/db/seed.ts",
+    "icons:generate": "tsx scripts/generate-icons.ts"
   },
+
   "dependencies": {
     "@libsql/client": "^0.18.0",
     "bcryptjs": "^3.0.3",
@@ -37,6 +39,7 @@
     "eslint-config-next": "16.3.5",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.8",
+    "sharp": "^0.35.4",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",

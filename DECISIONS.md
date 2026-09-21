@@ -24,5 +24,9 @@
 - **stats streak & 30-day reviews**: Daily review grouping according to user's timezone; streak calculation accounting for active study days; interactive 30-day SVG/CSS bar chart with dynamic scaling.
 - **settings password & delete account**: Password update verified with bcrypt; delete account requiring typed confirmation (`XÓA TÀI KHOẢN` or user email) with full cascade deletion of sets, cards, progress, logs, and scores.
 - **dark mode dynamic class sync**: Settings immediately synchronizes `dark` class on the root HTML element and supports system preferences.
+- **pwa standalone & assets**: Implemented `src/app/manifest.ts` and automated icon pipeline (`scripts/generate-icons.ts`) outputting 192, 512, maskable 512, and 180 apple-touch PNG icons from SVG.
+- **online-first service worker**: Implemented `/sw.js` featuring an offline fallback route (`/offline`) while strictly bypassing `/api/` calls to maintain online-first integrity.
+- **accessibility & reduced motion**: Universal `prefers-reduced-motion` style overrides, high-contrast `:focus-visible` rings, and `pb-safe` / `pt-safe` safe-area inset helpers.
+
 
 
