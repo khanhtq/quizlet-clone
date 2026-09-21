@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/server/auth';
 import { redirect } from 'next/navigation';
 import ReviewTodayBanner from '@/components/sets/ReviewTodayBanner';
+import StatsOverview from '@/components/stats/StatsOverview';
 import SetList from '@/components/sets/SetList';
 
 export default async function HomePage() {
@@ -12,7 +13,9 @@ export default async function HomePage() {
   return (
     <div>
       <ReviewTodayBanner />
+      <StatsOverview />
       <SetList />
     </div>
   );
 }
+

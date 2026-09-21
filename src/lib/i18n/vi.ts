@@ -147,7 +147,17 @@ export const vi = {
     saveFailed: 'Không thể lưu cài đặt',
     saveButton: 'Lưu cài đặt',
     saving: 'Đang lưu...',
+    changePassword: 'Đổi mật khẩu',
+    currentPassword: 'Mật khẩu hiện tại',
+    newPassword: 'Mật khẩu mới',
+    confirmNewPassword: 'Xác nhận mật khẩu mới',
+    updatePasswordBtn: 'Cập nhật mật khẩu',
+    deleteAccount: 'Xóa tài khoản vĩnh viễn',
+    deleteAccountWarning: 'Hành động này sẽ xóa toàn bộ học phần, thẻ học, tiến độ và lịch sử của bạn. Không thể hoàn tác.',
+    deleteAccountConfirmPrompt: 'Để xác nhận, vui lòng gõ "XÓA TÀI KHOẢN" hoặc email của bạn vào ô dưới đây:',
+    deleteAccountBtn: 'Tôi hiểu, xóa tài khoản',
   },
+
   bulk: {
     title: 'Thêm hàng loạt',
     pastePlaceholder: 'Dán danh sách từ vựng tại đây, mỗi từ trên một dòng:\nVí dụ:\napple - quả táo\nbanana - quả chuối\nserendipity (sẽ tự động tra nghĩa)',

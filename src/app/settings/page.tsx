@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
 import {
   ArrowLeft,
   Settings as SettingsIcon,
@@ -18,9 +20,12 @@ import {
   Database,
   Download,
   Upload,
+  KeyRound,
+  Trash2,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
 import LogoutButton from '@/components/auth/LogoutButton';
+
 
 interface UserSettings {
   theme: 'system' | 'light' | 'dark';
@@ -46,7 +51,9 @@ const COMMON_TIMEZONES = [
 ];
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState<UserSettings>({
+
     theme: 'system',
     meaningLanguage: 'both',
     newCardsPerDay: 20,
@@ -62,6 +69,95 @@ export default function SettingsPage() {
   const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
   const [isRestoring, setIsRestoring] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Account deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Dark mode class sync
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.theme === 'dark') {
+      root.classList.add('dark');
+    } else if (settings.theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
+  }, [settings.theme]);
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setPasswordMessage({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 8 ký tự' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: 'error', text: 'Mật khẩu xác nhận không khớp' });
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordMessage(null);
+    try {
+      const res = await fetch('/api/settings/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordMessage({ type: 'success', text: data.message || 'Đổi mật khẩu thành công!' });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordMessage({ type: 'error', text: data.error || 'Đổi mật khẩu thất bại' });
+      }
+    } catch {
+      setPasswordMessage({ type: 'error', text: 'Lỗi kết nối máy chủ' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch('/api/settings/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmText: deleteConfirmText }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        router.push('/login');
+      } else {
+
+        setDeleteError(data.error || 'Xóa tài khoản thất bại');
+      }
+    } catch {
+      setDeleteError('Lỗi kết nối máy chủ');
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
 
   async function handleRestoreFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -508,14 +604,149 @@ export default function SettingsPage() {
       </div>
 
       {/* Account Section */}
-      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
+      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-6">
         <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
           {vi.settings.account}
         </h2>
-        <div className="pt-1">
+
+        {/* Change Password Form */}
+        <form onSubmit={handleChangePassword} className="space-y-3 max-w-md pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-200">
+            <KeyRound className="w-4 h-4 text-blue-600" />
+            <span>{vi.settings.changePassword}</span>
+          </div>
+
+          {passwordMessage && (
+            <div
+              className={`p-3 rounded-xl text-xs font-semibold ${
+                passwordMessage.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300'
+              }`}
+            >
+              {passwordMessage.text}
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {vi.settings.currentPassword}
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {vi.settings.newPassword}
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={8}
+              placeholder="Ít nhất 8 ký tự"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {vi.settings.confirmNewPassword}
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={passwordLoading}
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition min-h-[44px] cursor-pointer disabled:opacity-50"
+          >
+            {passwordLoading ? 'Đang cập nhật...' : vi.settings.updatePasswordBtn}
+          </button>
+        </form>
+
+        {/* Logout & Delete Account Actions */}
+        <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-4">
           <LogoutButton />
+
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-semibold transition min-h-[44px] cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>{vi.settings.deleteAccount}</span>
+          </button>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 shadow-xl space-y-4">
+            <h3 className="text-lg font-bold text-red-600 dark:text-red-400">
+              {vi.settings.deleteAccount}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {vi.settings.deleteAccountWarning}
+            </p>
+            <p className="text-xs text-gray-700 dark:text-gray-300 font-semibold">
+              {vi.settings.deleteAccountConfirmPrompt}
+            </p>
+
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder='Gõ "XÓA TÀI KHOẢN" hoặc email...'
+              className="w-full px-3.5 py-2.5 rounded-xl border border-red-300 dark:border-red-900 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+
+            {deleteError && (
+              <p className="text-xs text-red-600 dark:text-red-400 font-semibold">
+                {deleteError}
+              </p>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                  setDeleteError(null);
+                }}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px]"
+              >
+                {vi.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || !deleteConfirmText.trim()}
+                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition min-h-[44px] disabled:opacity-50 cursor-pointer"
+              >
+                {deletingAccount ? 'Đang xóa...' : vi.settings.deleteAccountBtn}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

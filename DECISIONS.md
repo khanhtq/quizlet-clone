@@ -20,4 +20,9 @@
 - **learn 2-stage progression**: Implemented `new` (4-choice distractors) -> `familiar` (typed answer with diacritic/fuzzy and edit distance 1 "gần đúng" tolerance) -> `mastered` with in-session cycling, wrong answer demotion, and `review_logs` persistence with `mode: 'learn'`.
 - **test mode customizable generator**: Dynamic test creation supporting user-configured question counts and enabled types (Trắc nghiệm, Đúng/Sai, Tự luận), full review summary, and a targeted "Làm lại các câu sai" retry workflow.
 - **match game timer & best score**: 6-pair (12 tiles) shuffled interactive grid with live tenths-of-second timer, tap-to-pair feedback, and server-side personal best persistence in `match_scores`.
+- **search sql like & debounce**: Implemented 300ms debounced search matching set titles/descriptions and card terms/definitions with strict multi-tenant isolation.
+- **stats streak & 30-day reviews**: Daily review grouping according to user's timezone; streak calculation accounting for active study days; interactive 30-day SVG/CSS bar chart with dynamic scaling.
+- **settings password & delete account**: Password update verified with bcrypt; delete account requiring typed confirmation (`XÓA TÀI KHOẢN` or user email) with full cascade deletion of sets, cards, progress, logs, and scores.
+- **dark mode dynamic class sync**: Settings immediately synchronizes `dark` class on the root HTML element and supports system preferences.
+
 

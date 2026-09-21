@@ -8,7 +8,8 @@
 - [x] **M5 SRS + Ôn hôm nay + settings basics**.
 - [x] **M6 Bulk add, CSV, JSON backup/restore**.
 - [x] **M7 Learn**. **M8 Test**. **M9 Match**.
-- [ ] **M10 Search, stats, full settings, dark mode polish**.
+- [x] **M10 Search, stats, full settings, dark mode polish**.
+
 
 - [ ] **M11 PWA + accessibility pass + performance pass** (Lighthouse-style checks if tooling is available).
 - [ ] **M12 P2**: share link, folders, starred.
