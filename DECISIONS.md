@@ -17,3 +17,7 @@
 - **bulk add concurrency 3**: Managed async auto-lookup for terms without definition using a client-side concurrency worker pool of 3 with live progress indication.
 - **rfc 4180 csv with utf-8 bom**: Prepend byte order mark `\uFEFF` on CSV exports to guarantee flawless rendering of Vietnamese accents across Microsoft Excel, Google Sheets, and standard spreadsheet software.
 - **json backup re-keying on restore**: When importing foreign JSON backups, re-key collided IDs with `nanoid()` while maintaining relational integrity (folders -> sets -> cards -> progress -> logs) to prevent cross-user ID collision or data corruption.
+- **learn 2-stage progression**: Implemented `new` (4-choice distractors) -> `familiar` (typed answer with diacritic/fuzzy and edit distance 1 "gần đúng" tolerance) -> `mastered` with in-session cycling, wrong answer demotion, and `review_logs` persistence with `mode: 'learn'`.
+- **test mode customizable generator**: Dynamic test creation supporting user-configured question counts and enabled types (Trắc nghiệm, Đúng/Sai, Tự luận), full review summary, and a targeted "Làm lại các câu sai" retry workflow.
+- **match game timer & best score**: 6-pair (12 tiles) shuffled interactive grid with live tenths-of-second timer, tap-to-pair feedback, and server-side personal best persistence in `match_scores`.
+
