@@ -88,9 +88,12 @@ export default function SettingsPage() {
     const root = document.documentElement;
     if (settings.theme === 'dark') {
       root.classList.add('dark');
+      localStorage.setItem('quizlet_theme', 'dark');
     } else if (settings.theme === 'light') {
       root.classList.remove('dark');
+      localStorage.setItem('quizlet_theme', 'light');
     } else {
+      localStorage.setItem('quizlet_theme', 'system');
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       if (prefersDark) {
         root.classList.add('dark');
