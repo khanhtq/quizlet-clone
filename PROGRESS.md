@@ -2,7 +2,7 @@
 
 - [x] **M0 Scaffold**: Next.js, tooling, scripts, `.env.example`, `PROGRESS.md`, `DECISIONS.md`, `.gitignore`, CI-free `npm run check` green.
 - [x] **M1 DB + auth**: schema, migrations, register/login/logout, session middleware, rate limits, authz test harness.
-- [ ] **M2 Sets and cards CRUD + responsive shell** (with i18n dictionary).
+- [x] **M2 Sets and cards CRUD + responsive shell** (with i18n dictionary).
 - [ ] **M3 Flashcards (free mode)** complete per 6.1, including swipe, keyboard, TTS, undo.
 - [ ] **M4 Suggestions**: autocomplete, `/api/lookup`, cache, chips, duplicate warning.
 - [ ] **M5 SRS + Ôn hôm nay + settings basics**.

@@ -84,9 +84,15 @@ describe('Auth Unit & Integration Tests', () => {
   });
 
   describe('Register and Login Flows', () => {
-    const email = `testuser_${nanoid(6)}@example.com`;
+    let email: string;
     const password = 'StrongPassword123!';
-    const ip = '192.168.1.100';
+    let ip: string;
+
+    beforeEach(async () => {
+      ip = `192.168.1.${nanoid(4)}`;
+      email = `testuser_${nanoid(6)}@example.com`;
+      await resetRateLimit(`signup:${ip}`);
+    });
 
     it('should register a new user successfully', async () => {
       const res = await register({ email, password }, ip);
@@ -96,6 +102,9 @@ describe('Auth Unit & Integration Tests', () => {
     });
 
     it('should prevent duplicate email registration', async () => {
+      // First registration
+      await register({ email, password }, ip);
+      // Second registration should fail
       const res = await register({ email, password }, ip);
       expect(res.success).toBe(false);
       expect(res.error).toContain('đã được sử dụng');
@@ -108,12 +117,14 @@ describe('Auth Unit & Integration Tests', () => {
     });
 
     it('should login with correct credentials', async () => {
+      await register({ email, password }, ip);
       const res = await login({ email, password }, ip);
       expect(res.success).toBe(true);
       expect(res.user?.email).toBe(email.toLowerCase());
     });
 
     it('should reject wrong password with generic error', async () => {
+      await register({ email, password }, ip);
       const res = await login({ email, password: 'WrongPassword!' }, ip);
       expect(res.success).toBe(false);
       expect(res.error).toBe('Email hoặc mật khẩu không chính xác.');
