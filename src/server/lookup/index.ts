@@ -81,8 +81,8 @@ export async function lookupWord(
     source: 'api',
   };
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    result.notice = 'Chưa thiết lập ANTHROPIC_API_KEY (chỉ hiển thị định nghĩa tiếng Anh).';
+  if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    result.notice = 'Chưa thiết lập GEMINI_API_KEY hoặc ANTHROPIC_API_KEY (chỉ hiển thị định nghĩa tiếng Anh).';
   }
 
   // 4. Save to cache

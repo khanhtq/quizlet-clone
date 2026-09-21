@@ -117,4 +117,71 @@ describe('Suggestions & Lookup Unit/Integration Tests (M4)', () => {
       expect(res.meanings).toBeDefined();
     });
   });
+
+  describe('Gemini Meaning Provider', () => {
+    it('should return empty array if GEMINI_API_KEY is not set', async () => {
+      const originalKey = process.env.GEMINI_API_KEY;
+      delete process.env.GEMINI_API_KEY;
+
+      const { GeminiMeaningProvider } = await import('@/server/lookup/llm-provider');
+      const provider = new GeminiMeaningProvider();
+      const meanings = await provider.getMeanings('ephemeral', userId);
+      expect(meanings).toEqual([]);
+
+      process.env.GEMINI_API_KEY = originalKey;
+    });
+
+    it('should correctly parse structured JSON from Gemini API', async () => {
+      const originalKey = process.env.GEMINI_API_KEY;
+      process.env.GEMINI_API_KEY = 'fake_gemini_key';
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (url.includes('generativelanguage.googleapis.com')) {
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: async () => ({
+                candidates: [
+                  {
+                    content: {
+                      parts: [
+                        {
+                          text: JSON.stringify({
+                            meanings: [
+                              {
+                                pos: 'adjective',
+                                vi: 'ngắn ngủi, phù du',
+                                example_en: 'Fame is ephemeral.',
+                                example_vi: 'Danh vọng thật phù du.',
+                              },
+                            ],
+                          }),
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }),
+            });
+          }
+          return Promise.resolve({ ok: true, json: async () => [] });
+        })
+      );
+
+      const { GeminiMeaningProvider } = await import('@/server/lookup/llm-provider');
+      const provider = new GeminiMeaningProvider();
+      const meanings = await provider.getMeanings('ephemeral', userId);
+
+      expect(meanings.length).toBe(1);
+      expect(meanings[0].pos).toBe('adjective');
+      expect(meanings[0].vi).toBe('ngắn ngủi, phù du');
+      expect(meanings[0].exampleEn).toBe('Fame is ephemeral.');
+      expect(meanings[0].exampleVi).toBe('Danh vọng thật phù du.');
+
+      process.env.GEMINI_API_KEY = originalKey;
+    });
+  });
 });
+

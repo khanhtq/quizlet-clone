@@ -33,4 +33,4 @@
 - **security headers in next.config.ts**: Declared strict Content-Security-Policy with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
 - **offline idempotent seed script**: Created `src/server/db/seed.ts` providing demo account `demo@quizlet.local` (`Demo123456`) and 20 rich English vocabulary cards with IPA, parts of speech, and bilingual examples with zero external API calls.
 - **e2e smoke test suite**: Built `src/test/hardening-e2e.test.ts` to exercise full user lifecycle (auth, set/card creation, SRS rating, review queue verification, headers, and seed idempotency). Playwright was omitted per prompt instructions in favour of comprehensive integration testing.
-
+- **google gemini support**: Added GeminiMeaningProvider and MultiMeaningProvider enabling Google Gemini API (gemini-1.5-flash / gemini-2.0-flash) with generous free tier (1,500 req/day) alongside Anthropic Claude, with automatic provider fallback and zero external dependencies.

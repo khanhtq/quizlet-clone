@@ -6,7 +6,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline';
   img-src 'self' blob: data: https:;
   font-src 'self' data:;
-  connect-src 'self' https://api.datamuse.com https://api.dictionaryapi.dev https://api.anthropic.com;
+  connect-src 'self' https://api.datamuse.com https://api.dictionaryapi.dev https://api.anthropic.com https://generativelanguage.googleapis.com;
   media-src 'self' blob: data: https:;
   object-src 'none';
   base-uri 'self';

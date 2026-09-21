@@ -102,11 +102,17 @@ Các biến cấu hình trong file `.env`:
 | `DATABASE_AUTH_TOKEN` | Khi dùng Turso | `""` | Auth Token do Turso cung cấp cho database |
 | `SESSION_SECRET` | Có (Production) | Chuỗi 32+ ký tự | Khóa bí mật dùng để ký và xác thực JWT cookie đăng nhập |
 | `ALLOW_SIGNUP` | Không | `true` | Đặt `false` trong production để khóa đăng ký mới sau khi tạo tài khoản của bạn |
-| `ANTHROPIC_API_KEY` | Không | `""` | API Key của Anthropic để tự động tạo nghĩa tiếng Việt bằng Claude AI |
-| `LLM_MODEL` | Không | `claude-haiku-4-5-20251001` | Model Claude sử dụng cho tra cứu nghĩa tiếng Việt |
+| `GEMINI_API_KEY` | Không | `""` | **(Khuyến nghị)** API Key miễn phí từ Google AI Studio (`aistudio.google.com`) để gợi ý nghĩa tiếng Việt |
+| `GEMINI_MODEL` | Không | `gemini-1.5-flash` | Model Gemini sử dụng (`gemini-1.5-flash` hoặc `gemini-2.0-flash`) |
+| `ANTHROPIC_API_KEY` | Không | `""` | API Key của Anthropic nếu muốn sử dụng Claude AI |
+| `LLM_MODEL` | Không | `claude-haiku-4-5-20251001` | Model Claude sử dụng nếu dùng Anthropic |
+| `LLM_PROVIDER` | Không | `""` | Tùy chọn ưu tiên: `gemini` hoặc `anthropic` (mặc định tự nhận diện key có sẵn) |
 | `LLM_DAILY_CAP` | Không | `200` | Giới hạn số lượt gọi AI tối đa trong một ngày trên toàn hệ thống |
 
-> **Lưu ý**: Nếu không cấu hình `ANTHROPIC_API_KEY`, ứng dụng vẫn hoạt động 100% bình thường. Hệ thống sẽ tra cứu từ điển qua Free Dictionary API và cho phép nhập nghĩa thủ công dễ dàng.
+> **Lưu ý về AI Tra cứu nghĩa tiếng Việt**:
+> - **Google Gemini (Khuyến nghị)**: Miễn phí hoàn toàn với hạn mức cao (1.500 yêu cầu/ngày) tại [Google AI Studio](https://aistudio.google.com). Bạn chỉ cần tạo API key miễn phí và điền `GEMINI_API_KEY` là ứng dụng sẽ tự động kích hoạt.
+> - **Anthropic Claude**: Tùy chọn bổ sung nếu bạn muốn dùng model của Anthropic.
+> - Nếu không cấu hình bất kỳ API Key AI nào, ứng dụng vẫn hoạt động 100% bình thường (tra cứu phiên âm & định nghĩa qua Free Dictionary API và cho phép nhập nghĩa thủ công).
 
 ---
 
