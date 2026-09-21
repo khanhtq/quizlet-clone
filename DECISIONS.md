@@ -7,3 +7,5 @@
 - **src/server/queries**: Structured user-scoped database access layer ensuring strict multi-tenant data isolation.
 - **vitest fileParallelism: false**: Configured Vitest to run sequentially to avoid SQLite `SQLITE_BUSY: database is locked` during concurrent file writes.
 - **responsive shell**: Implemented `AppShell` with desktop sticky sidebar (>= 1024px) and mobile bottom tab bar (< 1024px) with safe-area insets and touch targets >= 44px.
+- **flashcards 3d & swipe**: Implemented CSS 3D transforms and pointer events without external animation libraries, supporting 30% threshold swipe, tilt feedback, TTS, and keyboard shortcuts.
+- **study direction persistence**: Stored per-set direction preference in localStorage under `quizlet_direction_${setId}`.
