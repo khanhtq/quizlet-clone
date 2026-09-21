@@ -85,10 +85,13 @@ export default function BulkAddModal({
             const fallbackEnMeaning = data.dictionary?.meanings?.[0]?.definitions?.[0]?.definition;
 
             if (firstViMeaning?.vi) {
-              updated[idx].definition = firstViMeaning.vi;
+              const prefix = firstViMeaning.pos ? `(${firstViMeaning.pos}) ` : '';
+              updated[idx].definition = `${prefix}${firstViMeaning.vi}`;
               if (firstViMeaning.pos) updated[idx].partOfSpeech = firstViMeaning.pos;
             } else if (fallbackEnMeaning) {
-              updated[idx].definition = fallbackEnMeaning;
+              const fallbackPos = data.meanings?.[0]?.pos || data.dictionary?.meanings?.[0]?.partOfSpeech;
+              const prefix = fallbackPos ? `(${fallbackPos}) ` : '';
+              updated[idx].definition = `${prefix}${fallbackEnMeaning}`;
             }
 
             if (data.dictionary?.phonetic) {

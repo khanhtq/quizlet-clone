@@ -66,9 +66,12 @@ export default function SetEditPage() {
   // Meaning suggestions state
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [showDefinitionSuggestions, setShowDefinitionSuggestions] = useState(false);
 
   const [showBulkModal, setShowBulkModal] = useState(false);
   const termInputRef = useRef<HTMLInputElement>(null);
+  const termDropdownRef = useRef<HTMLDivElement>(null);
+  const defDropdownRef = useRef<HTMLDivElement>(null);
 
   const reloadCards = useCallback(async () => {
     try {
@@ -116,6 +119,7 @@ export default function SetEditPage() {
       setDuplicateWarning(null);
       setSuggestions([]);
       setShowSuggestions(false);
+      setShowDefinitionSuggestions(false);
       setLookupResult(null);
     }
   }
@@ -179,6 +183,20 @@ export default function SetEditPage() {
     };
   }, [term]);
 
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (termDropdownRef.current && !termDropdownRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+      if (defDropdownRef.current && !defDropdownRef.current.contains(e.target as Node)) {
+        setShowDefinitionSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // 3. Meaning suggestions lookup (600ms debounce)
   useEffect(() => {
     const trimmed = term.trim();
@@ -199,6 +217,20 @@ export default function SetEditPage() {
           // Autofill phonetic if not already filled
           if (data.phonetic && !phonetic) {
             setPhonetic(data.phonetic);
+          }
+          // If definition suggestions are available, display dropdown and auto-suggest first meaning
+          if (data.meanings && data.meanings.length > 0) {
+            setShowDefinitionSuggestions(true);
+            const firstMeaning = data.meanings[0];
+            const rawText = firstMeaning.vi || firstMeaning.en || '';
+            const formatted = firstMeaning.pos ? `(${firstMeaning.pos}) ${rawText}` : rawText;
+            setDefinition((prev) => (prev ? prev : formatted));
+            if (firstMeaning.pos) {
+              setPartOfSpeech((prev) => (prev ? prev : firstMeaning.pos));
+            }
+            if (firstMeaning.exampleEn) {
+              setExample((prev) => (prev ? prev : firstMeaning.exampleEn));
+            }
           }
         }
       } catch {
@@ -228,6 +260,9 @@ export default function SetEditPage() {
         const data = await res.json();
         setLookupResult(data);
         if (data.phonetic) setPhonetic(data.phonetic);
+        if (data.meanings && data.meanings.length > 0) {
+          setShowDefinitionSuggestions(true);
+        }
       }
     } catch {
       // Ignore
@@ -240,6 +275,7 @@ export default function SetEditPage() {
     setTerm(word);
     setShowSuggestions(false);
     setActiveSuggestionIndex(-1);
+    setIsLookingUp(true);
     // Directly trigger lookup for this word
     void fetch(`/api/lookup?word=${encodeURIComponent(word)}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -247,20 +283,37 @@ export default function SetEditPage() {
         if (data) {
           setLookupResult(data);
           if (data.phonetic) setPhonetic(data.phonetic);
+          if (data.meanings && data.meanings.length > 0) {
+            setShowDefinitionSuggestions(true);
+            const firstMeaning = data.meanings[0];
+            const rawText = firstMeaning.vi || firstMeaning.en || '';
+            const formatted = firstMeaning.pos ? `(${firstMeaning.pos}) ${rawText}` : rawText;
+            setDefinition((prev) => (prev ? prev : formatted));
+            if (firstMeaning.pos) {
+              setPartOfSpeech((prev) => (prev ? prev : firstMeaning.pos));
+            }
+            if (firstMeaning.exampleEn) {
+              setExample((prev) => (prev ? prev : firstMeaning.exampleEn));
+            }
+          }
         }
+      })
+      .finally(() => {
+        setIsLookingUp(false);
       });
   }
 
   function applyMeaningChip(m: MeaningItem) {
-    const meaningText = m.vi || m.en || '';
-    setDefinition(meaningText);
-    if (m.pos && !partOfSpeech) {
+    const rawMeaning = m.vi || m.en || '';
+    const formattedDefinition = m.pos ? `(${m.pos}) ${rawMeaning}` : rawMeaning;
+    setDefinition(formattedDefinition);
+    if (m.pos) {
       setPartOfSpeech(m.pos);
     }
-    if (m.exampleEn && !example) {
+    if (m.exampleEn) {
       setExample(m.exampleEn);
     }
-    if (lookupResult?.phonetic && !phonetic) {
+    if (lookupResult?.phonetic) {
       setPhonetic(lookupResult.phonetic);
     }
   }
@@ -318,6 +371,7 @@ export default function SetEditPage() {
         setLookupResult(null);
         setSuggestions([]);
         setShowSuggestions(false);
+        setShowDefinitionSuggestions(false);
         // Focus back to term input
         termInputRef.current?.focus();
       }
@@ -360,6 +414,10 @@ export default function SetEditPage() {
   }
 
   function handleDefinitionKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      setShowDefinitionSuggestions(false);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleAddCard();
@@ -541,7 +599,7 @@ export default function SetEditPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
           {/* Term Input with Autocomplete Dropdown */}
-          <div className="relative">
+          <div ref={termDropdownRef} className="relative">
             <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
               {vi.cards.termLabel} <span className="text-red-500">*</span>
             </label>
@@ -580,8 +638,8 @@ export default function SetEditPage() {
             )}
           </div>
 
-          {/* Definition Input */}
-          <div>
+          {/* Definition Input with Suggestions Dropdown */}
+          <div ref={defDropdownRef} className="relative">
             <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
               {vi.cards.definitionLabel} <span className="text-red-500">*</span>
             </label>
@@ -589,10 +647,56 @@ export default function SetEditPage() {
               type="text"
               value={definition}
               onChange={(e) => setDefinition(e.target.value)}
+              onFocus={() => {
+                if (lookupResult?.meanings && lookupResult.meanings.length > 0) {
+                  setShowDefinitionSuggestions(true);
+                }
+              }}
               onKeyDown={handleDefinitionKeyDown}
-              placeholder={vi.cards.definitionPlaceholder}
+              placeholder="(loại từ) nghĩa (VD: (noun) quả táo)"
               className="w-full h-11 px-3.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+
+            {/* Definition Suggestions Dropdown */}
+            {showDefinitionSuggestions && lookupResult?.meanings && lookupResult.meanings.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-30 max-h-56 overflow-y-auto p-1 divide-y divide-gray-100 dark:divide-gray-800">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/30 rounded-lg mb-1 flex items-center justify-between">
+                  <span>Gợi ý định nghĩa ({lookupResult.meanings.length})</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Nhấp để chọn</span>
+                </div>
+                {lookupResult.meanings.map((m, idx) => {
+                  const rawMeaning = m.vi || m.en || '';
+                  const formattedText = m.pos ? `(${m.pos}) ${rawMeaning}` : rawMeaning;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        applyMeaningChip(m);
+                        setShowDefinitionSuggestions(false);
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950/60 transition cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        {m.pos && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 shrink-0">
+                            {m.pos}
+                          </span>
+                        )}
+                        <span className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                          {formattedText}
+                        </span>
+                      </div>
+                      {(m.exampleEn || m.exampleVi) && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1 italic">
+                          {m.exampleEn} {m.exampleVi ? `— ${m.exampleVi}` : ''}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -619,18 +723,20 @@ export default function SetEditPage() {
             {lookupResult?.meanings && lookupResult.meanings.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {lookupResult.meanings.map((m, idx) => {
-                  const displayText = m.vi || m.en;
+                  const rawMeaning = m.vi || m.en || '';
+                  const formattedText = m.pos ? `(${m.pos}) ${rawMeaning}` : rawMeaning;
                   return (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => applyMeaningChip(m)}
+                      title={m.exampleEn ? `${formattedText} - VD: ${m.exampleEn}` : formattedText}
                       className="px-2.5 py-1 rounded-lg bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 text-xs text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-950 transition flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer text-left"
                     >
                       <span className="text-[10px] font-bold uppercase px-1 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
                         {m.pos}
                       </span>
-                      <span className="line-clamp-1">{displayText}</span>
+                      <span className="line-clamp-1">{formattedText}</span>
                     </button>
                   );
                 })}
