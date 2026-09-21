@@ -1,0 +1,17 @@
+# Progress
+
+- [x] **M0 Scaffold**: Next.js, tooling, scripts, `.env.example`, `PROGRESS.md`, `DECISIONS.md`, `.gitignore`, CI-free `npm run check` green.
+- [ ] **M1 DB + auth**: schema, migrations, register/login/logout, session middleware, rate limits, authz test harness.
+- [ ] **M2 Sets and cards CRUD + responsive shell** (with i18n dictionary).
+- [ ] **M3 Flashcards (free mode)** complete per 6.1, including swipe, keyboard, TTS, undo.
+- [ ] **M4 Suggestions**: autocomplete, `/api/lookup`, cache, chips, duplicate warning.
+- [ ] **M5 SRS + Ôn hôm nay + settings basics**.
+- [ ] **M6 Bulk add, CSV, JSON backup/restore**.
+- [ ] **M7 Learn**. **M8 Test**. **M9 Match**.
+- [ ] **M10 Search, stats, full settings, dark mode polish**.
+- [ ] **M11 PWA + accessibility pass + performance pass** (Lighthouse-style checks if tooling is available).
+- [ ] **M12 P2**: share link, folders, starred.
+- [ ] **M13 Hardening**: security headers, full test run, seed, e2e smoke (register, create set, add cards, flip and rate, review today) at both viewports if Playwright works, README, tag `v1.0.0`.
+
+## Blocked
+*(None)*
