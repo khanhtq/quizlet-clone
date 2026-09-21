@@ -11,8 +11,11 @@ import {
   ChevronDown,
   AlertTriangle,
   Check,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
+import { LookupResult, MeaningItem } from '@/server/lookup/types';
 
 interface CardItem {
   id: string;
@@ -52,6 +55,15 @@ export default function SetEditPage() {
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<DuplicateInfo | null>(null);
 
+  // Autocomplete state
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+
+  // Meaning suggestions state
+  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+
   const termInputRef = useRef<HTMLInputElement>(null);
 
   // Load set and cards
@@ -83,12 +95,16 @@ export default function SetEditPage() {
 
   function handleTermChange(value: string) {
     setTerm(value);
+    setActiveSuggestionIndex(-1);
     if (value.trim().length < 2) {
       setDuplicateWarning(null);
+      setSuggestions([]);
+      setShowSuggestions(false);
+      setLookupResult(null);
     }
   }
 
-  // Duplicate term check with debounce
+  // 1. Duplicate term check with debounce (300ms)
   useEffect(() => {
     const trimmed = term.trim();
     if (!trimmed || trimmed.length < 2) {
@@ -115,6 +131,123 @@ export default function SetEditPage() {
       clearTimeout(timer);
     };
   }, [term]);
+
+  // 2. Autocomplete suggestions (200ms debounce)
+  useEffect(() => {
+    const trimmed = term.trim();
+    if (!trimmed || trimmed.length < 2) {
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/autocomplete?q=${encodeURIComponent(trimmed)}`
+        );
+        if (res.ok && isCurrent) {
+          const data = await res.json();
+          setSuggestions(data.suggestions || []);
+          if (data.suggestions && data.suggestions.length > 0) {
+            setShowSuggestions(true);
+          }
+        }
+      } catch {
+        // Ignore autocomplete error
+      }
+    }, 200);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [term]);
+
+  // 3. Meaning suggestions lookup (600ms debounce)
+  useEffect(() => {
+    const trimmed = term.trim();
+    if (!trimmed || trimmed.length < 2) {
+      return;
+    }
+
+    let isCurrent = true;
+    const timer = setTimeout(async () => {
+      try {
+        setIsLookingUp(true);
+        const res = await fetch(
+          `/api/lookup?word=${encodeURIComponent(trimmed)}`
+        );
+        if (res.ok && isCurrent) {
+          const data = await res.json();
+          setLookupResult(data);
+          // Autofill phonetic if not already filled
+          if (data.phonetic && !phonetic) {
+            setPhonetic(data.phonetic);
+          }
+        }
+      } catch {
+        // Ignore lookup error
+      } finally {
+        if (isCurrent) setIsLookingUp(false);
+      }
+    }, 600);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [term, phonetic]);
+
+  async function triggerLookup(forceRefresh = false) {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+    setIsLookingUp(true);
+    try {
+      const res = await fetch(
+        `/api/lookup?word=${encodeURIComponent(trimmed)}${
+          forceRefresh ? '&refresh=true' : ''
+        }`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setLookupResult(data);
+        if (data.phonetic) setPhonetic(data.phonetic);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setIsLookingUp(false);
+    }
+  }
+
+  function selectSuggestion(word: string) {
+    setTerm(word);
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
+    // Directly trigger lookup for this word
+    void fetch(`/api/lookup?word=${encodeURIComponent(word)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setLookupResult(data);
+          if (data.phonetic) setPhonetic(data.phonetic);
+        }
+      });
+  }
+
+  function applyMeaningChip(m: MeaningItem) {
+    const meaningText = m.vi || m.en || '';
+    setDefinition(meaningText);
+    if (m.pos && !partOfSpeech) {
+      setPartOfSpeech(m.pos);
+    }
+    if (m.exampleEn && !example) {
+      setExample(m.exampleEn);
+    }
+    if (lookupResult?.phonetic && !phonetic) {
+      setPhonetic(lookupResult.phonetic);
+    }
+  }
 
   async function handleSaveSetHeader(e: React.FormEvent) {
     e.preventDefault();
@@ -151,6 +284,7 @@ export default function SetEditPage() {
           phonetic: phonetic.trim() || undefined,
           partOfSpeech: partOfSpeech.trim() || undefined,
           example: example.trim() || undefined,
+          audioUrl: lookupResult?.audioUrl || undefined,
           position: cards.length,
         }),
       });
@@ -165,6 +299,9 @@ export default function SetEditPage() {
         setPartOfSpeech('');
         setExample('');
         setDuplicateWarning(null);
+        setLookupResult(null);
+        setSuggestions([]);
+        setShowSuggestions(false);
         // Focus back to term input
         termInputRef.current?.focus();
       }
@@ -175,7 +312,38 @@ export default function SetEditPage() {
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleTermKeyDown(e: React.KeyboardEvent) {
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSuggestionIndex(
+          (prev) => (prev - 1 + suggestions.length) % suggestions.length
+        );
+        return;
+      }
+      if (e.key === 'Enter' && activeSuggestionIndex >= 0) {
+        e.preventDefault();
+        selectSuggestion(suggestions[activeSuggestionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleAddCard();
+    }
+  }
+
+  function handleDefinitionKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleAddCard();
@@ -211,7 +379,6 @@ export default function SetEditPage() {
 
     setCards(newCards);
 
-    // Save reorder
     try {
       await fetch(`/api/sets/${setId}/cards/reorder`, {
         method: 'POST',
@@ -323,7 +490,7 @@ export default function SetEditPage() {
         </div>
       </form>
 
-      {/* Inline Add Card Form */}
+      {/* Inline Add Card Form with Suggestions */}
       <div className="p-5 bg-blue-50/60 dark:bg-blue-950/30 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-blue-900 dark:text-blue-300 flex items-center gap-2">
@@ -356,8 +523,9 @@ export default function SetEditPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 relative">
+          {/* Term Input with Autocomplete Dropdown */}
+          <div className="relative">
             <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
               {vi.cards.termLabel} <span className="text-red-500">*</span>
             </label>
@@ -366,11 +534,37 @@ export default function SetEditPage() {
               type="text"
               value={term}
               onChange={(e) => handleTermChange(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleTermKeyDown}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
               placeholder={vi.cards.termPlaceholder}
+              autoComplete="off"
               className="w-full h-11 px-3.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+
+            {/* Autocomplete Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto">
+                {suggestions.map((s, idx) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => selectSuggestion(s)}
+                    className={`w-full text-left px-3.5 py-2.5 text-sm transition cursor-pointer flex items-center justify-between ${
+                      idx === activeSuggestionIndex
+                        ? 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 font-medium'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-800 dark:text-gray-200'
+                    }`}
+                  >
+                    <span>{s}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+
+          {/* Definition Input */}
           <div>
             <label className="block text-xs font-semibold mb-1 text-gray-700 dark:text-gray-300">
               {vi.cards.definitionLabel} <span className="text-red-500">*</span>
@@ -379,12 +573,66 @@ export default function SetEditPage() {
               type="text"
               value={definition}
               onChange={(e) => setDefinition(e.target.value)}
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleDefinitionKeyDown}
               placeholder={vi.cards.definitionPlaceholder}
               className="w-full h-11 px-3.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
+
+        {/* Meaning Suggestion Chips */}
+        {term.trim().length >= 2 && (
+          <div className="pt-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-800 dark:text-blue-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Gợi ý nghĩa ({isLookingUp ? 'Đang tra...' : 'chọn để điền nhanh'})</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => triggerLookup(true)}
+                disabled={isLookingUp}
+                title="Làm mới tra cứu"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLookingUp ? 'animate-spin' : ''}`} />
+                <span>Làm mới</span>
+              </button>
+            </div>
+
+            {lookupResult?.meanings && lookupResult.meanings.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {lookupResult.meanings.map((m, idx) => {
+                  const displayText = m.vi || m.en;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => applyMeaningChip(m)}
+                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-gray-900 border border-blue-200 dark:border-blue-800 text-xs text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-950 transition flex items-center gap-1.5 shadow-2xs active:scale-95 cursor-pointer text-left"
+                    >
+                      <span className="text-[10px] font-bold uppercase px-1 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
+                        {m.pos}
+                      </span>
+                      <span className="line-clamp-1">{displayText}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : isLookingUp ? (
+              <div className="flex gap-2 animate-pulse">
+                <div className="h-6 w-24 bg-blue-200 dark:bg-blue-900 rounded-lg" />
+                <div className="h-6 w-32 bg-blue-200 dark:bg-blue-900 rounded-lg" />
+              </div>
+            ) : null}
+
+            {lookupResult?.notice && (
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                {lookupResult.notice}
+              </p>
+            )}
+          </div>
+        )}
 
         {showOptionalFields && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">

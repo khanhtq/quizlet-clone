@@ -4,7 +4,7 @@
 - [x] **M1 DB + auth**: schema, migrations, register/login/logout, session middleware, rate limits, authz test harness.
 - [x] **M2 Sets and cards CRUD + responsive shell** (with i18n dictionary).
 - [x] **M3 Flashcards (free mode)** complete per 6.1, including swipe, keyboard, TTS, undo.
-- [ ] **M4 Suggestions**: autocomplete, `/api/lookup`, cache, chips, duplicate warning.
+- [x] **M4 Suggestions**: autocomplete, `/api/lookup`, cache, chips, duplicate warning.
 - [ ] **M5 SRS + Ôn hôm nay + settings basics**.
 - [ ] **M6 Bulk add, CSV, JSON backup/restore**.
 - [ ] **M7 Learn**. **M8 Test**. **M9 Match**.

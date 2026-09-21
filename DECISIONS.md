@@ -9,3 +9,5 @@
 - **responsive shell**: Implemented `AppShell` with desktop sticky sidebar (>= 1024px) and mobile bottom tab bar (< 1024px) with safe-area insets and touch targets >= 44px.
 - **flashcards 3d & swipe**: Implemented CSS 3D transforms and pointer events without external animation libraries, supporting 30% threshold swipe, tilt feedback, TTS, and keyboard shortcuts.
 - **study direction persistence**: Stored per-set direction preference in localStorage under `quizlet_direction_${setId}`.
+- **dictionary lookup & LLM fallback**: Parallelized Free Dictionary API and Anthropic Claude (with daily cap & user rate limits), caching merged results in `dictionary_cache` and falling back gracefully without API key.
+- **autocomplete**: Combined user's terms with Datamuse suggestions under 200ms debounce with full keyboard accessibility.
