@@ -192,3 +192,19 @@ export async function findDuplicateCard(userId: string, term: string) {
 
   return allUserCards.find((c) => c.term.trim().toLowerCase() === normalized) || null;
 }
+
+export async function toggleCardStar(userId: string, cardId: string): Promise<boolean> {
+  const card = await getCardById(userId, cardId);
+  if (!card) {
+    throw new Error('CARD_NOT_FOUND_OR_UNAUTHORIZED');
+  }
+
+  const nextStarred = !card.starred;
+  await db
+    .update(cards)
+    .set({ starred: nextStarred, updatedAt: Date.now() })
+    .where(and(eq(cards.id, cardId), eq(cards.userId, userId)));
+
+  return nextStarred;
+}
+

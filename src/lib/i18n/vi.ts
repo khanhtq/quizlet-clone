@@ -51,8 +51,11 @@ export const vi = {
     library: 'Thư viện',
   },
   sets: {
+    title: 'Học phần',
+    newSet: 'Tạo học phần',
     createTitle: 'Tạo học phần mới',
     editTitle: 'Chỉnh sửa học phần',
+
     titleLabel: 'Tiêu đề học phần',
     titlePlaceholder: 'Nhập tiêu đề học phần...',
     descriptionLabel: 'Mô tả',

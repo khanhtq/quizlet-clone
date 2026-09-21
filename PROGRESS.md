@@ -12,9 +12,9 @@
 
 
 - [x] **M11 PWA + accessibility pass + performance pass** (Lighthouse-style checks if tooling is available).
-- [ ] **M12 P2**: share link, folders, starred.
-
+- [x] **M12 P2**: share link, folders, starred.
 - [ ] **M13 Hardening**: security headers, full test run, seed, e2e smoke (register, create set, add cards, flip and rate, review today) at both viewports if Playwright works, README, tag `v1.0.0`.
+
 
 ## Blocked
 *(None)*

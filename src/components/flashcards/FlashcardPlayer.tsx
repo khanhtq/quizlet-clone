@@ -21,7 +21,9 @@ export interface FlashcardItem {
   partOfSpeech?: string | null;
   example?: string | null;
   audioUrl?: string | null;
+  starred?: boolean;
 }
+
 
 export interface ScheduledIntervals {
   again: string;

@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import FlashcardPlayer, { FlashcardItem } from '@/components/flashcards/FlashcardPlayer';
 import { vi } from '@/lib/i18n/vi';
 
 export default function FlashcardsPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const setId = params.id as string;
+  const isStarredOnly = searchParams.get('starred') === 'true';
 
   const [cards, setCards] = useState<FlashcardItem[]>([]);
   const [setTitle, setSetTitle] = useState('');
@@ -24,7 +26,11 @@ export default function FlashcardsPage() {
         const data = await res.json();
         if (!ignore) {
           setSetTitle(data.set?.title || '');
-          setCards(data.cards || []);
+          let rawCards: FlashcardItem[] = data.cards || [];
+          if (isStarredOnly) {
+            rawCards = rawCards.filter((c) => c.starred);
+          }
+          setCards(rawCards);
           setLoading(false);
         }
       } catch {
@@ -38,7 +44,7 @@ export default function FlashcardsPage() {
     return () => {
       ignore = true;
     };
-  }, [setId]);
+  }, [setId, isStarredOnly]);
 
   if (loading) {
     return (
@@ -53,7 +59,7 @@ export default function FlashcardsPage() {
     return (
       <div className="max-w-md mx-auto p-8 text-center bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 space-y-4">
         <p className="text-gray-600 dark:text-gray-400">
-          {error || vi.sets.noCards}
+          {error || (isStarredOnly ? 'Học phần này chưa có thẻ nào được gắn sao.' : vi.sets.noCards)}
         </p>
         <button
           onClick={() => router.push(`/sets/${setId}`)}
@@ -68,7 +74,7 @@ export default function FlashcardsPage() {
   return (
     <FlashcardPlayer
       setId={setId}
-      setTitle={setTitle}
+      setTitle={isStarredOnly ? `${setTitle} (Thẻ gắn sao)` : setTitle}
       cards={cards}
       scheduled={false}
       onBack={() => router.push(`/sets/${setId}`)}

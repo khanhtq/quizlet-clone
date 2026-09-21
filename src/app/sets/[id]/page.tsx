@@ -15,6 +15,12 @@ import {
   Volume2,
   Plus,
   Download,
+  Share2,
+  Star,
+  Check,
+  Folder as FolderIcon,
+  X,
+  Globe,
 } from 'lucide-react';
 import { vi } from '@/lib/i18n/vi';
 
@@ -33,10 +39,18 @@ interface SetDetails {
   id: string;
   title: string;
   description: string | null;
+  folderId: string | null;
+  isPublic: boolean;
+  shareSlug: string | null;
   cardCount: number;
   dueCount: number;
   lastStudiedAt: number | null;
   createdAt: number;
+}
+
+interface FolderOption {
+  id: string;
+  name: string;
 }
 
 export default function SetDetailPage() {
@@ -46,24 +60,44 @@ export default function SetDetailPage() {
 
   const [set, setSet] = useState<SetDetails | null>(null);
   const [cards, setCards] = useState<CardItem[]>([]);
+  const [folders, setFolders] = useState<FolderOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
 
+  // Share state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isPublicShare, setIsPublicShare] = useState(false);
+  const [shareSlug, setShareSlug] = useState<string | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [togglingShare, setTogglingShare] = useState(false);
+
+  // Starred filter
+  const [showStarredOnly, setShowStarredOnly] = useState(false);
+
   useEffect(() => {
     let ignore = false;
-    async function loadSet() {
+    async function loadData() {
       try {
-        const res = await fetch(`/api/sets/${setId}`);
-        if (!res.ok) {
-          throw new Error('Set not found');
-        }
-        const data = await res.json();
+        const [setRes, foldersRes] = await Promise.all([
+          fetch(`/api/sets/${setId}`),
+          fetch('/api/folders'),
+        ]);
+
+        if (!setRes.ok) throw new Error('Set not found');
+
+        const setData = await setRes.json();
+        const foldersData = foldersRes.ok ? await foldersRes.json() : { folders: [] };
+
         if (!ignore) {
-          setSet(data.set);
-          setCards(data.cards || []);
+          setSet(setData.set);
+          setCards(setData.cards || []);
+          setIsPublicShare(Boolean(setData.set.isPublic));
+          setShareSlug(setData.set.shareSlug || null);
+          setFolders(foldersData.folders || []);
           setLoading(false);
         }
       } catch {
@@ -75,7 +109,7 @@ export default function SetDetailPage() {
     }
 
     if (setId) {
-      loadSet();
+      loadData();
     }
     return () => {
       ignore = true;
@@ -91,6 +125,67 @@ export default function SetDetailPage() {
     } else if (audioUrl) {
       const audio = new Audio(audioUrl);
       audio.play().catch(() => {});
+    }
+  }
+
+  async function handleToggleStar(cardId: string) {
+    // Optimistic toggle
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId ? { ...c, starred: !c.starred } : c))
+    );
+
+    try {
+      await fetch(`/api/cards/${cardId}/star`, { method: 'POST' });
+    } catch {
+      // Revert if error
+      setCards((prev) =>
+        prev.map((c) => (c.id === cardId ? { ...c, starred: !c.starred } : c))
+      );
+    }
+  }
+
+  async function handleToggleShare() {
+    const nextPublic = !isPublicShare;
+    setTogglingShare(true);
+    try {
+      const res = await fetch(`/api/sets/${setId}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: nextPublic }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setIsPublicShare(data.isPublic);
+        setShareSlug(data.shareSlug);
+      }
+    } catch {
+      alert('Không thể cập nhật chia sẻ');
+    } finally {
+      setTogglingShare(false);
+    }
+  }
+
+  function handleCopyShareLink() {
+    if (!shareSlug || typeof window === 'undefined') return;
+    const url = `${window.location.origin}/s/${shareSlug}`;
+    navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
+  }
+
+  async function handleFolderChange(folderId: string) {
+    const newFolderId = folderId === '' ? null : folderId;
+    setSet((prev) => (prev ? { ...prev, folderId: newFolderId } : prev));
+
+    try {
+      await fetch(`/api/sets/${setId}/folder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: newFolderId }),
+      });
+    } catch {
+      // Non-blocking
     }
   }
 
@@ -153,18 +248,21 @@ export default function SetDetailPage() {
     );
   }
 
+  const starredCount = cards.filter((c) => c.starred).length;
+  const displayedCards = showStarredOnly ? cards.filter((c) => c.starred) : cards;
+
   const studyModes = [
     {
       title: vi.study.flashcards,
       desc: 'Lật thẻ và ghi nhớ',
-      href: `/sets/${setId}/flashcards`,
+      href: `/sets/${setId}/flashcards${showStarredOnly ? '?starred=true' : ''}`,
       icon: Layers,
       color: 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900',
     },
     {
       title: vi.study.learn,
       desc: 'Trắc nghiệm và gõ từ',
-      href: `/sets/${setId}/learn`,
+      href: `/sets/${setId}/learn${showStarredOnly ? '?starred=true' : ''}`,
       icon: GraduationCap,
       color: 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900',
     },
@@ -197,6 +295,19 @@ export default function SetDetailPage() {
         </Link>
 
         <div className="flex items-center gap-2">
+          {/* Public Share Button */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            title="Chia sẻ học phần"
+            className={`p-2.5 rounded-xl border transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer ${
+              isPublicShare
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400'
+                : 'border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+
           <button
             onClick={handleDuplicate}
             disabled={isDuplicating}
@@ -231,7 +342,7 @@ export default function SetDetailPage() {
       </div>
 
       {/* Set Header Info */}
-      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-3">
+      <div className="p-6 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
             {set.title}
@@ -253,8 +364,39 @@ export default function SetDetailPage() {
           </p>
         )}
 
-        <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800/60 flex items-center gap-4">
-          <span>{vi.sets.cardsCount(cards.length)}</span>
+        <div className="pt-3 border-t border-gray-100 dark:border-gray-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-4">
+            <span>{vi.sets.cardsCount(cards.length)}</span>
+            {starredCount > 0 && (
+              <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span>{starredCount} thẻ gắn sao</span>
+              </span>
+            )}
+            {isPublicShare && (
+              <span className="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                <Globe className="w-3.5 h-3.5" />
+                <span>Công khai</span>
+              </span>
+            )}
+          </div>
+
+          {/* Folder dropdown assignment */}
+          <div className="flex items-center gap-1.5">
+            <FolderIcon className="w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={set.folderId || ''}
+              onChange={(e) => handleFolderChange(e.target.value)}
+              className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              <option value="">Chưa phân vào thư mục</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  Thư mục: {f.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -275,13 +417,34 @@ export default function SetDetailPage() {
 
       {/* Study Modes Grid */}
       <div>
-        <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">
-          {vi.sets.studyModes}
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
+            {vi.sets.studyModes}
+          </h2>
+
+          {starredCount > 0 && (
+            <button
+              onClick={() => setShowStarredOnly(!showStarredOnly)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition cursor-pointer ${
+                showStarredOnly
+                  ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20'
+                  : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Star
+                className={`w-3.5 h-3.5 ${
+                  showStarredOnly ? 'fill-amber-500 text-amber-500' : 'text-gray-400'
+                }`}
+              />
+              <span>Chỉ học thẻ gắn sao ({starredCount})</span>
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {studyModes.map((mode) => {
             const Icon = mode.icon;
-            const disabled = cards.length === 0;
+            const disabled = displayedCards.length === 0;
 
             return (
               <Link
@@ -314,7 +477,7 @@ export default function SetDetailPage() {
       <div className="space-y-3 pt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-            {vi.cards.termLabel} trong học phần ({cards.length})
+            {vi.cards.termLabel} trong học phần ({displayedCards.length})
           </h2>
           <Link
             href={`/sets/${setId}/edit`}
@@ -325,22 +488,24 @@ export default function SetDetailPage() {
           </Link>
         </div>
 
-        {cards.length === 0 ? (
+        {displayedCards.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-              {vi.sets.noCards}
+              {showStarredOnly ? 'Chưa có thẻ nào được gắn sao' : vi.sets.noCards}
             </p>
-            <Link
-              href={`/sets/${setId}/edit`}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{vi.cards.addCard}</span>
-            </Link>
+            {!showStarredOnly && (
+              <Link
+                href={`/sets/${setId}/edit`}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{vi.cards.addCard}</span>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="space-y-2.5">
-            {cards.map((card, idx) => (
+            {displayedCards.map((card, idx) => (
               <div
                 key={card.id}
                 className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex items-start justify-between gap-4"
@@ -372,18 +537,131 @@ export default function SetDetailPage() {
                   )}
                 </div>
 
-                <button
-                  onClick={() => speak(card.term, card.audioUrl)}
-                  className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer shrink-0"
-                  aria-label="Phát âm"
-                >
-                  <Volume2 className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Star Toggle Button */}
+                  <button
+                    onClick={() => handleToggleStar(card.id)}
+                    className="p-2 text-gray-400 hover:text-amber-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                    title={card.starred ? 'Bỏ gắn sao' : 'Gắn sao thẻ này'}
+                    aria-label="Gắn sao"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${
+                        card.starred
+                          ? 'fill-amber-400 text-amber-500'
+                          : 'text-gray-400 hover:text-amber-500'
+                      }`}
+                    />
+                  </button>
+
+                  <button
+                    onClick={() => speak(card.term, card.audioUrl)}
+                    className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                    aria-label="Phát âm"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 shadow-xl space-y-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-lg text-gray-900 dark:text-gray-100">
+                <Share2 className="w-5 h-5 text-blue-600" />
+                <span>Chia sẻ học phần</span>
+              </div>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Toggle public */}
+              <div className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    Chia sẻ công khai
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Bất kỳ ai có liên kết đều có thể xem và sao chép học phần này
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleToggleShare}
+                  disabled={togglingShare}
+                  className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
+                    isPublicShare ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform absolute top-1 left-1 ${
+                      isPublicShare ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Public URL Box */}
+              {isPublicShare && shareSlug && (
+                <div className="space-y-2 pt-2">
+                  <label className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                    Liên kết công khai
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={
+                        typeof window !== 'undefined'
+                          ? `${window.location.origin}/s/${shareSlug}`
+                          : `/s/${shareSlug}`
+                      }
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs font-mono text-gray-800 dark:text-gray-200 select-all"
+                    />
+                    <button
+                      onClick={handleCopyShareLink}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition min-h-[40px] cursor-pointer flex items-center gap-1.5"
+                    >
+                      {shareCopied ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Đã sao chép!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Sao chép</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition min-h-[40px] cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
