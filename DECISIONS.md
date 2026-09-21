@@ -2,3 +2,6 @@
 
 - **lucide-react**: Added for accessible and consistent UI icons across responsive shell, flashcards, and navigation without heavy bundle overhead.
 - **@types/node@^22**: Installed to align with host Node.js v22.19.0 and fulfill Vitest peer dependency.
+- **rate_limits table**: Added dedicated table in SQLite/LibSQL to support serverless rate limiting for login (by IP+email) and signup (by IP) as required by Section 9.
+- **src/proxy.ts**: Adopted Next.js 16 `proxy.ts` convention to eliminate middleware deprecation warning.
+- **src/server/queries**: Structured user-scoped database access layer ensuring strict multi-tenant data isolation.
