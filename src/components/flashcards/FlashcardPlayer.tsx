@@ -35,6 +35,7 @@ interface FlashcardPlayerProps {
   setTitle?: string;
   cards: FlashcardItem[];
   scheduled?: boolean;
+  ttsAutoplay?: boolean;
   getIntervalPreviews?: (cardId: string) => ScheduledIntervals;
   onRate?: (cardId: string, rating: 'again' | 'hard' | 'good' | 'easy') => Promise<void>;
   onUndoSRS?: (cardId: string) => Promise<void>;
@@ -53,6 +54,7 @@ export default function FlashcardPlayer({
   setTitle,
   cards: initialCards,
   scheduled = false,
+  ttsAutoplay = false,
   getIntervalPreviews,
   onRate,
   onUndoSRS,
@@ -88,6 +90,20 @@ export default function FlashcardPlayer({
   const [history, setHistory] = useState<SessionHistoryItem[]>([]);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // In-session Again re-queueing for scheduled mode
+  const [againQueue, setAgainQueue] = useState<{ card: FlashcardItem; reQueueAt: number }[]>([]);
+
+  // Adjust state during render when initialCards prop changes (React recommended pattern)
+  const [prevCards, setPrevCards] = useState<FlashcardItem[]>(initialCards);
+  if (prevCards !== initialCards) {
+    setPrevCards(initialCards);
+    setDeck(initialCards);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setSessionComplete(false);
+    setAgainQueue([]);
+  }
 
   // Swipe gesture state
   const [touchDeltaX, setTouchDeltaX] = useState(0);
@@ -132,6 +148,18 @@ export default function FlashcardPlayer({
 
   const currentCard = deck[currentIndex];
 
+  // Auto-play TTS if enabled in settings
+  useEffect(() => {
+    if (!ttsAutoplay || !currentCard || sessionComplete) return;
+    const isEnglishShowing =
+      (direction === 'term' && !isFlipped) ||
+      (direction === 'definition' && isFlipped) ||
+      (direction === 'mixed');
+    if (isEnglishShowing) {
+      speakTerm(currentCard.term, currentCard.audioUrl);
+    }
+  }, [currentIndex, isFlipped, ttsAutoplay, currentCard, direction, speakTerm, sessionComplete]);
+
   // Rate card handler
   const handleRate = useCallback(
     async (rating: 'again' | 'hard' | 'good' | 'easy') => {
@@ -154,7 +182,7 @@ export default function FlashcardPlayer({
 
       setHistory((prev) => [...prev, { index: currentIndex, cardId, rating }]);
 
-      // Persist review log via API
+      // Persist review log / SRS update via API
       try {
         if (onRate) {
           await onRate(cardId, rating);
@@ -174,8 +202,52 @@ export default function FlashcardPlayer({
         setToast('Không thể đồng bộ kết quả, vui lòng kiểm tra kết nối.');
       }
 
+      // In scheduled mode: queue 'again' cards to be reviewed again in the session
+      let currentAgainQueue = againQueue;
+      if (scheduled && rating === 'again') {
+        currentAgainQueue = [
+          ...againQueue,
+          {
+            card: currentCard,
+            reQueueAt: Date.now() + 10 * 60 * 1000,
+          },
+        ];
+      }
+
+      // Check if any again cards should be re-inserted into deck
+      let nextDeck = deck;
+      if (scheduled && currentAgainQueue.length > 0) {
+        const now = Date.now();
+        const isQueueAboutToEmpty = currentIndex + 1 >= deck.length;
+
+        if (isQueueAboutToEmpty) {
+          // Re-queue immediately if the queue would otherwise empty
+          const cardsToRequeue = currentAgainQueue.map((item) => item.card);
+          currentAgainQueue = [];
+          nextDeck = [...deck, ...cardsToRequeue];
+          setDeck(nextDeck);
+        } else {
+          // Re-queue cards that have waited ~10 minutes
+          const readyCards: FlashcardItem[] = [];
+          const pendingAgain: { card: FlashcardItem; reQueueAt: number }[] = [];
+          for (const item of currentAgainQueue) {
+            if (now >= item.reQueueAt) {
+              readyCards.push(item.card);
+            } else {
+              pendingAgain.push(item);
+            }
+          }
+          if (readyCards.length > 0) {
+            currentAgainQueue = pendingAgain;
+            nextDeck = [...deck, ...readyCards];
+            setDeck(nextDeck);
+          }
+        }
+      }
+      setAgainQueue(currentAgainQueue);
+
       // Transition to next card or complete
-      if (currentIndex + 1 < deck.length) {
+      if (currentIndex + 1 < nextDeck.length) {
         setCurrentIndex((i) => i + 1);
         setIsFlipped(false);
         setCardStartTime(Date.now());
@@ -187,7 +259,17 @@ export default function FlashcardPlayer({
         if (onFinish) onFinish();
       }
     },
-    [currentCard, cardStartTime, currentIndex, deck.length, scheduled, onRate, onFinish, sessionStartTime]
+    [
+      currentCard,
+      cardStartTime,
+      currentIndex,
+      deck,
+      againQueue,
+      scheduled,
+      onRate,
+      onFinish,
+      sessionStartTime,
+    ]
   );
 
   // Undo last rating
@@ -204,6 +286,11 @@ export default function FlashcardPlayer({
 
     if (lastItem.rating === 'again' || lastItem.rating === 'hard') {
       setMissedCards((prev) => prev.filter((c) => c.id !== lastItem.cardId));
+    }
+
+    // Revert againQueue if it was scheduled and again
+    if (scheduled && lastItem.rating === 'again') {
+      setAgainQueue((prev) => prev.filter((item) => item.card.id !== lastItem.cardId));
     }
 
     // Call undo API
@@ -225,7 +312,7 @@ export default function FlashcardPlayer({
     setCurrentIndex(lastItem.index);
     setIsFlipped(true);
     setSessionComplete(false);
-  }, [history, onUndoSRS]);
+  }, [history, onUndoSRS, scheduled]);
 
   // Flip card
   const toggleFlip = useCallback(() => {

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/server/auth';
-import { deleteLastReviewLog } from '@/server/queries/logs';
+import { undoCardSRS } from '@/server/queries/review';
 import { z } from 'zod';
 
 const undoSchema = z.object({
-  cardId: z.string(),
+  cardId: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dữ liệu không hợp lệ' }, { status: 400 });
     }
 
-    const deleted = await deleteLastReviewLog(user.userId, parsed.data.cardId);
-    return NextResponse.json({ success: deleted });
+    const result = await undoCardSRS(user.userId, parsed.data.cardId);
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
   }

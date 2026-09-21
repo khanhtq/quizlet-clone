@@ -5,7 +5,7 @@
 - [x] **M2 Sets and cards CRUD + responsive shell** (with i18n dictionary).
 - [x] **M3 Flashcards (free mode)** complete per 6.1, including swipe, keyboard, TTS, undo.
 - [x] **M4 Suggestions**: autocomplete, `/api/lookup`, cache, chips, duplicate warning.
-- [ ] **M5 SRS + Ôn hôm nay + settings basics**.
+- [x] **M5 SRS + Ôn hôm nay + settings basics**.
 - [ ] **M6 Bulk add, CSV, JSON backup/restore**.
 - [ ] **M7 Learn**. **M8 Test**. **M9 Match**.
 - [ ] **M10 Search, stats, full settings, dark mode polish**.

@@ -249,6 +249,21 @@ export default function SetDetailPage() {
         </div>
       </div>
 
+      {set.dueCount > 0 && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between gap-4 shadow-sm">
+          <div>
+            <div className="font-bold text-sm">Học phần này có {set.dueCount} từ vựng cần ôn tập</div>
+            <div className="text-xs text-blue-100 mt-0.5">Thuật toán SRS đã tính toán thời điểm vàng để ôn lại</div>
+          </div>
+          <Link
+            href={`/review?setId=${setId}`}
+            className="px-4 py-2 rounded-xl bg-white text-blue-600 hover:bg-blue-50 font-semibold text-xs transition shadow-sm shrink-0 min-h-[44px] inline-flex items-center justify-center"
+          >
+            Ôn ngay
+          </Link>
+        </div>
+      )}
+
       {/* Study Modes Grid */}
       <div>
         <h2 className="text-base font-bold text-gray-900 dark:text-gray-100 mb-3">
