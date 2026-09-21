@@ -27,6 +27,10 @@
 - **pwa standalone & assets**: Implemented `src/app/manifest.ts` and automated icon pipeline (`scripts/generate-icons.ts`) outputting 192, 512, maskable 512, and 180 apple-touch PNG icons from SVG.
 - **online-first service worker**: Implemented `/sw.js` featuring an offline fallback route (`/offline`) while strictly bypassing `/api/` calls to maintain online-first integrity.
 - **accessibility & reduced motion**: Universal `prefers-reduced-motion` style overrides, high-contrast `:focus-visible` rings, and `pb-safe` / `pt-safe` safe-area inset helpers.
-
-
+- **public share links**: Generated unguessable 16-character slugs via `nanoid(16)` with public read-only page `/s/[slug]` allowing unauthenticated review and authenticated one-click clone to user's sets.
+- **folders grouping**: Implemented multi-tenant `folders` table with cascading set associations, folder filter tabs on home dashboard, and folder selector in set settings.
+- **starred cards filter**: Added `starred` boolean column on `cards` table with instant toggle, UI star icons, and `?starred=true` query support in FlashcardPlayer.
+- **security headers in next.config.ts**: Declared strict Content-Security-Policy with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy`.
+- **offline idempotent seed script**: Created `src/server/db/seed.ts` providing demo account `demo@quizlet.local` (`Demo123456`) and 20 rich English vocabulary cards with IPA, parts of speech, and bilingual examples with zero external API calls.
+- **e2e smoke test suite**: Built `src/test/hardening-e2e.test.ts` to exercise full user lifecycle (auth, set/card creation, SRS rating, review queue verification, headers, and seed idempotency). Playwright was omitted per prompt instructions in favour of comprehensive integration testing.
 
